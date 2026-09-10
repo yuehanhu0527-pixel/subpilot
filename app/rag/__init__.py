@@ -1,1 +1,1 @@
-"""RAG pipeline (loader, chunker, embedder, store, retriever) — added in Phase 1."""
+"""RAG pipeline: loader → chunker → embedder → store → retriever (Phase 1)."""
