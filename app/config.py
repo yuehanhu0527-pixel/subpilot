@@ -26,5 +26,9 @@ class Settings:
     # 本地数据目录（Phase 1 起用于 Chroma 与 embedding 模型缓存）
     data_dir: Path = field(default_factory=_default_data_dir)
 
+    # 日程引擎时区（Phase 2）：IANA 名称，如 "America/New_York"。
+    # 未设置时 ScheduleEngine 必须显式传 tz，否则报错——绝不回退到服务器本地时区。
+    timezone: str | None = os.environ.get("SUBPILOT_TIMEZONE")
+
 
 settings = Settings()

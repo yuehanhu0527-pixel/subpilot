@@ -2,7 +2,31 @@
 
 An AI agent that helps substitute teachers get through their day at an unfamiliar school.
 
-**Status: Phase 1 — local RAG pipeline.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+**Status: Phase 2 — schedule engine.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+
+## Schedule engine (Phase 2)
+
+Deterministic, no-LLM period / bell schedule state (`app/schedule/`):
+
+- **Models** — `Period` (controlled `kind`: `class` / `lunch` / `prep` / `other`), date-keyed `Schedule` (validated: sorted, no overlaps), `ScheduleStatus` result.
+- **Loader** — reads structured course times from JSON (`{"days": {"2026-09-10": [...]}}`) with explicit validation errors.
+- **Engine** — given an explicit timezone-aware `now`, reports one of `before_school` / `in_period` / `between_periods` / `after_school` / `no_classes`, with current subject, minutes remaining, and next period. Period starts are inclusive, ends exclusive; minutes round up.
+
+Timezone is always explicit: constructor `tz=` first, then `SUBPILOT_TIMEZONE` — with neither set the engine raises instead of falling back to server-local time. The engine never calls `datetime.now()`; callers inject the current time.
+
+```python
+from app.schedule.engine import ScheduleEngine
+from app.schedule.loader import load_schedule
+
+schedule = load_schedule("data/schedule.json")
+engine = ScheduleEngine(schedule, tz="America/New_York")   # or set SUBPILOT_TIMEZONE
+
+status = engine.status_at(now)          # timezone-aware datetime
+status.status                           # "in_period" | "between_periods" | ...
+status.current_period.subject           # "Math" when in a class period
+status.minutes_remaining                # e.g. 15
+status.next_period.name                 # "Lunch" — what's coming up next
+```
 
 ## RAG pipeline (Phase 1)
 
@@ -25,7 +49,7 @@ result.message                                       # "No relevant information 
 
 Tests: `uv run pytest` (unit) and `uv run pytest -m integration` (end-to-end with the real embedding model; first run downloads the model).
 
-## Quick start (Phase 1)
+## Quick start (Phase 2)
 
 ```bash
 cd subpilot
