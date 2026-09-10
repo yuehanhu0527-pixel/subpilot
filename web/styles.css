@@ -1,0 +1,57 @@
+/* SubPilot — Phase 0 skeleton styles.
+   The full design (chat streaming, cards, citations) comes in Phase 5. */
+
+:root {
+  --bg: #f7f6f3;
+  --panel: #ffffff;
+  --border: #e4e1da;
+  --text: #1f1e1b;
+  --muted: #7a766c;
+  --accent: #3a6ea5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.topbar h1 { margin: 0; font-size: 20px; }
+.tagline { margin: 0; color: var(--muted); font-size: 14px; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  padding: 16px 24px;
+  min-height: calc(100vh - 70px);
+}
+
+.chat-panel,
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+.placeholder {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+  padding: 8px 0;
+}

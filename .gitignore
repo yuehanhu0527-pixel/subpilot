@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Environment & runtime data
+.env
+data/
+*.db
+*.sqlite
+
+# macOS
+.DS_Store
