@@ -251,3 +251,16 @@ def test_minutes_until_next_rounds_up(engine):
     s = engine.status_at(local_dt(DAY, 7, 59, second=30))
     assert s.status == "before_school"
     assert s.minutes_until_next == 1
+
+
+# --- Phase 4：全天课表访问器（contextualize 注入用） ---
+
+
+def test_periods_on_returns_todays_periods():
+    engine = ScheduleEngine(make_schedule(), tz=NY)
+    assert [p.name for p in engine.periods_on(DAY)] == ["P1", "P2", "Lunch", "Prep", "P3"]
+
+
+def test_periods_on_missing_day_returns_empty():
+    engine = ScheduleEngine(make_schedule(), tz=NY)
+    assert engine.periods_on(date(2026, 9, 11)) == ()

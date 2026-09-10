@@ -13,9 +13,10 @@ from ..config import settings
 from ..llm import get_provider
 from ..schedule.engine import ScheduleEngine
 from ..schedule.loader import load_schedule
+from ..services.tracker import school_day_fn
 from .graph import build_agent_graph
 from .sessions import InMemorySessionStore, SessionStore
-from .tools import make_retrieve_documents_tool
+from .tools import build_default_tools
 
 
 def _load_schedule_engine() -> ScheduleEngine | None:
@@ -43,6 +44,7 @@ class Agent:
         sessions: SessionStore | None = None,
         store=None,
         embedder=None,
+        clock=None,
     ):
         self._model = model if model is not None else get_provider()
         self._sessions = sessions if sessions is not None else InMemorySessionStore()
@@ -50,7 +52,17 @@ class Agent:
         if tools is not None:
             self._tools = list(tools)
         else:
-            self._tools = [make_retrieve_documents_tool(store=store, embedder=embedder)]
+            # Phase 4 默认工具集：retrieval + bathroom ×3 + events ×2，
+            # 数据落 data/subpilot.db；tz 缺失时 school_day_fn 在此明确报错。
+            self._tools = build_default_tools(
+                db_path=settings.data_dir / "subpilot.db",
+                day_fn=school_day_fn(settings.timezone),
+                schedule_engine=self._engine,
+                clock=clock,
+                tz_name=settings.timezone,
+                store=store,
+                embedder=embedder,
+            )
         self._graph = build_agent_graph(self._model, self._tools, self._engine)
 
     def run(self, session_id: str, text: str, now: datetime | None = None) -> str:

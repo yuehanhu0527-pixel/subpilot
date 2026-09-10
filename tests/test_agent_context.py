@@ -111,3 +111,19 @@ def test_lunch_context_uses_name_without_subject():
 def test_build_schedule_context_is_deterministic():
     status = ScheduleStatus(status="no_classes", now=_now(13, 0))
     assert build_schedule_context(status) == build_schedule_context(status)
+
+
+# --- Phase 4：注入全天课表 ---
+
+
+def test_context_includes_full_day_schedule_when_periods_given():
+    status = ScheduleStatus(status="no_classes", now=_now(13, 0))
+    text = build_schedule_context(status, periods=(P1, P2, LUNCH, P3))
+    assert "Today's schedule:" in text
+    assert "P1 — Math 08:00–08:45" in text
+    assert "Lunch 11:30–12:15" in text
+
+
+def test_context_without_periods_has_no_schedule_line():
+    status = ScheduleStatus(status="no_classes", now=_now(13, 0))
+    assert "Today's schedule" not in build_schedule_context(status)

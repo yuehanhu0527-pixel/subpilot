@@ -23,8 +23,8 @@ def _fmt(t) -> str:
     return t.strftime("%H:%M")
 
 
-def build_schedule_context(status: ScheduleStatus) -> str:
-    """按五种状态生成确定性上下文文本。"""
+def build_schedule_context(status: ScheduleStatus, periods: tuple = ()) -> str:
+    """按五种状态生成确定性上下文文本；可附带当天完整课表（Phase 4）。"""
     lines = [
         f"It is currently {status.now:%H:%M} ({status.now.tzinfo}).",
         "",
@@ -69,5 +69,12 @@ def build_schedule_context(status: ScheduleStatus) -> str:
 
     elif status.status == "no_classes":
         lines.append("No classes are scheduled today.")
+
+    if periods:
+        lines.append("")
+        listing = "; ".join(
+            f"{_label(p)} {_fmt(p.start)}–{_fmt(p.end)}" for p in periods
+        )
+        lines.append(f"Today's schedule: {listing}.")
 
     return "\n".join(lines)

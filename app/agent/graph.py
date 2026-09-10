@@ -40,7 +40,9 @@ def build_agent_graph(
         if now is None or schedule_engine is None:
             return {}
         status = schedule_engine.status_at(now)
-        context = build_schedule_context(status)
+        # Phase 4：注入当天完整课表（数据小、确定性，无需专门 schedule tool）
+        periods = schedule_engine.periods_on(status.now.date())
+        context = build_schedule_context(status, periods)
         return {"schedule_context": context, "messages": [SystemMessage(content=context)]}
 
     def agent_node(state: AgentState) -> dict:

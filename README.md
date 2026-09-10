@@ -2,7 +2,25 @@
 
 An AI agent that helps substitute teachers get through their day at an unfamiliar school.
 
-**Status: Phase 3 — LLM layer + agent skeleton.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+**Status: Phase 4 — action tools.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+
+## Action tools (Phase 4)
+
+Real, useful actions on top of the Phase 3 loop (`app/agent/tools/` + `app/services/tracker.py`) — 6 tools total, no graph rewrite:
+
+- **Bathroom passes** — `start_bathroom_pass` / `end_bathroom_pass` / `get_bathroom_pass_status` (who's out, for how long). At most one open pass per student: enforced by business rule + a SQLite partial unique index (casefold keys). Timestamps are stamped by an injected clock — the LLM never supplies times.
+- **Classroom events** — `log_classroom_event` (factual, append-only; period auto-resolved from the schedule engine or validated against today's schedule) and `list_today_events`. No classification/label fields — the model cannot tag "misconduct".
+- **Persistence** — stdlib SQLite at `data/subpilot.db` (bathroom_passes + classroom_events tables), repos in `app/services/tracker.py`.
+- **Schedule** — no schedule tool: the deterministic contextualize node now also injects the full day's periods (via `ScheduleEngine.periods_on`).
+- **End-of-day note** — not a tool: the system prompt constrains the agent to compose the substitute note only from `list_today_events` output plus schedule context, never invented events.
+
+```python
+from app.agent import Agent
+
+agent = Agent()   # 6 default tools wired to data/subpilot.db
+agent.run(session_id="s1", text="Alice is going to the bathroom", now=aware_now)
+agent.run(session_id="s1", text="Write the end-of-day note", now=aware_now)
+```
 
 ## LLM + Agent (Phase 3)
 
@@ -70,7 +88,7 @@ result.message                                       # "No relevant information 
 
 Tests: `uv run pytest` (unit) and `uv run pytest -m integration` (end-to-end with the real embedding model; first run downloads the model).
 
-## Quick start (Phase 3)
+## Quick start (Phase 4)
 
 ```bash
 cd subpilot

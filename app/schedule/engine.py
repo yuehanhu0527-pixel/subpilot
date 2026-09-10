@@ -88,6 +88,13 @@ class ScheduleEngine:
             previous_period=periods[-1],
         )
 
+    def periods_on(self, day: date) -> tuple:
+        """某天的完整课表（按 start 排序）；无课 → 空元组。
+
+        Phase 4 起供 contextualize 注入全天课表。
+        """
+        return self._schedule.days.get(day, ())
+
     def _at(self, day: date, t: time) -> datetime:
         """把纯时间挂到日程时区的某一天上。"""
         return datetime.combine(day, t, tzinfo=self._tzinfo)

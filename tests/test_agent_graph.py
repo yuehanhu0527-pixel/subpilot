@@ -6,7 +6,7 @@
 系统提示禁止编造」机制保证。
 """
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
@@ -18,11 +18,20 @@ from app.agent import Agent
 from app.agent.graph import build_agent_graph
 from app.agent.sessions import InMemorySessionStore
 from app.agent.tools import make_retrieve_documents_tool
+from app.agent.tools.bathroom import (
+    make_get_bathroom_pass_status_tool,
+    make_start_bathroom_pass_tool,
+)
+from app.agent.tools.events import (
+    make_list_today_events_tool,
+    make_log_classroom_event_tool,
+)
 from app.llm.fake import FakeChatModel
 from app.rag.models import TextChunk
 from app.rag.store import ChromaStore
 from app.schedule.engine import ScheduleEngine
 from app.schedule.models import Period, Schedule
+from app.services.tracker import BathroomPassRepo, ClassroomEventRepo
 from tests.helpers import FakeEmbedder
 
 NY = "America/New_York"
@@ -280,3 +289,129 @@ def test_agent_sessions_are_isolated(tmp_data_dir):
     agent.run("s2", "question for s2")
     assert model.recorded[0][-1].content == "question for s1"
     assert model.recorded[1][-1].content == "question for s2"
+
+
+# --- Phase 4：全天课表注入、多工具流程、默认工具组装 ---
+
+
+def test_contextualize_includes_full_day_schedule(schedule_engine):
+    model = FakeChatModel(responses=[AIMessage(content="ok")])
+    graph = build_agent_graph(model, [], schedule_engine=schedule_engine)
+    now = datetime(2026, 9, 10, 8, 30, tzinfo=ZoneInfo(NY))
+    graph.invoke({"messages": [HumanMessage(content="when is lunch?")], "now": now})
+    assert any(
+        "Today's schedule:" in m.content and "Lunch" in m.content and "P3" in m.content
+        for m in _schedule_msgs(model)
+    )
+
+
+def _fixed_clock_box(hour, minute):
+    box = {"now": datetime(2026, 9, 10, hour, minute, tzinfo=timezone.utc)}
+    return box
+
+
+def test_bathroom_pass_flow_with_multiple_tool_calls(tmp_path, schedule_engine):
+    repo = BathroomPassRepo(tmp_path / "subpilot.db")
+    box = _fixed_clock_box(13, 15)  # = 09:15 EDT
+    tools = [
+        make_get_bathroom_pass_status_tool(repo, lambda: box["now"], tz_name=NY),
+        make_start_bathroom_pass_tool(repo, lambda: box["now"], lambda now: "2026-09-10", tz_name=NY),
+    ]
+    model = FakeChatModel(
+        responses=[
+            AIMessage(content="", tool_calls=[{"name": "get_bathroom_pass_status", "args": {"student": "Alice"}, "id": "c1"}]),
+            AIMessage(content="", tool_calls=[{"name": "start_bathroom_pass", "args": {"student": "Alice"}, "id": "c2"}]),
+            AIMessage(content="Alice's bathroom pass is recorded."),
+        ]
+    )
+    graph = build_agent_graph(model, tools, schedule_engine=schedule_engine)
+    result = graph.invoke({"messages": [HumanMessage(content="Alice is going to the bathroom")]})
+
+    tool_contents = [m.content for m in result["messages"] if isinstance(m, ToolMessage)]
+    assert tool_contents[0] == "Alice has no bathroom pass records."
+    assert tool_contents[1] == "Recorded: Alice left at 09:15."
+    assert result["messages"][-1].content == "Alice's bathroom pass is recorded."
+    assert len(model.recorded) == 3  # status → start → 最终回答
+
+
+def test_duplicate_bathroom_start_rejected_in_loop(tmp_path):
+    repo = BathroomPassRepo(tmp_path / "subpilot.db")
+    box = _fixed_clock_box(13, 15)
+    start = make_start_bathroom_pass_tool(repo, lambda: box["now"], lambda now: "2026-09-10", tz_name=NY)
+    model = FakeChatModel(
+        responses=[
+            AIMessage(content="", tool_calls=[{"name": "start_bathroom_pass", "args": {"student": "Alice"}, "id": "c1"}]),
+            AIMessage(content="", tool_calls=[{"name": "start_bathroom_pass", "args": {"student": "Alice"}, "id": "c2"}]),
+            AIMessage(content="Alice already has an open pass, so I didn't create a duplicate."),
+        ]
+    )
+    graph = build_agent_graph(model, [start])
+    result = graph.invoke({"messages": [HumanMessage(content="record Alice leaving, twice")]})
+
+    tool_contents = [m.content for m in result["messages"] if isinstance(m, ToolMessage)]
+    assert tool_contents[0].startswith("Recorded:")
+    assert "already has an open bathroom pass" in tool_contents[1]
+    assert result["messages"][-1].content.startswith("Alice already has an open pass")
+
+
+def test_event_log_and_report_grounded_in_real_data(tmp_path, schedule_engine):
+    repo = ClassroomEventRepo(tmp_path / "subpilot.db")
+    box = _fixed_clock_box(12, 30)  # = 08:30 EDT → P1
+    tools = [
+        make_log_classroom_event_tool(repo, lambda: box["now"], lambda now: "2026-09-10",
+                                      schedule_engine=schedule_engine, tz_name=NY),
+        make_list_today_events_tool(repo, lambda: box["now"], lambda now: "2026-09-10", tz_name=NY),
+    ]
+    model = FakeChatModel(
+        responses=[
+            AIMessage(content="", tool_calls=[{"name": "log_classroom_event", "args": {"description": "Students worked quietly on the math quiz."}, "id": "c1"}]),
+            AIMessage(content="", tool_calls=[{"name": "list_today_events", "args": {}, "id": "c2"}]),
+            AIMessage(content="End-of-day note: Students worked quietly on the math quiz."),
+        ]
+    )
+    graph = build_agent_graph(model, tools, schedule_engine=schedule_engine)
+    result = graph.invoke({"messages": [HumanMessage(content="Log an event, then give me today's summary")]})
+
+    tool_contents = [m.content for m in result["messages"] if isinstance(m, ToolMessage)]
+    # period 由引擎自动解析为 P1；事件真实入库
+    assert tool_contents[0] == "Event logged: [P1] 08:30 — Students worked quietly on the math quiz."
+    # 报告数据 = 真实入库事件列表（防幻觉机制断言）
+    assert "Students worked quietly" in tool_contents[1]
+    final_batch = model.recorded[-1]
+    assert any(
+        isinstance(m, ToolMessage) and "Students worked quietly" in m.content
+        for m in final_batch
+    )
+    assert result["messages"][-1].content == "End-of-day note: Students worked quietly on the math quiz."
+
+
+def test_invalid_period_rejected_in_loop(tmp_path, schedule_engine):
+    repo = ClassroomEventRepo(tmp_path / "subpilot.db")
+    box = _fixed_clock_box(12, 30)
+    tool = make_log_classroom_event_tool(repo, lambda: box["now"], lambda now: "2026-09-10",
+                                         schedule_engine=schedule_engine, tz_name=NY)
+    model = FakeChatModel(
+        responses=[
+            AIMessage(content="", tool_calls=[{"name": "log_classroom_event", "args": {"description": "something", "period": "P9"}, "id": "c1"}]),
+            AIMessage(content="I couldn't log that: P9 isn't in today's schedule."),
+        ]
+    )
+    graph = build_agent_graph(model, [tool], schedule_engine=schedule_engine)
+    result = graph.invoke({"messages": [HumanMessage(content="log an event in P9")]})
+    tool_contents = [m.content for m in result["messages"] if isinstance(m, ToolMessage)]
+    assert tool_contents[0].startswith("Error: unknown period")
+    assert repo.events_on("2026-09-10") == []
+
+
+def test_agent_default_tools_assembled(tmp_data_dir):
+    model = FakeChatModel(responses=[AIMessage(content="ok")])
+    agent = Agent(model=model)  # tools=None → 默认组装
+    names = sorted(t.name for t in agent._tools)
+    assert names == [
+        "end_bathroom_pass",
+        "get_bathroom_pass_status",
+        "list_today_events",
+        "log_classroom_event",
+        "retrieve_documents",
+        "start_bathroom_pass",
+    ]
