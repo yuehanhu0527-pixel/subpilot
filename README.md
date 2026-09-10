@@ -2,7 +2,28 @@
 
 An AI agent that helps substitute teachers get through their day at an unfamiliar school.
 
-**Status: Phase 2 — schedule engine.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+**Status: Phase 3 — LLM layer + agent skeleton.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+
+## LLM + Agent (Phase 3)
+
+First real agent decision-making (`app/llm/` + `app/agent/`):
+
+- **Provider abstraction** — `get_provider()` selects by `SUBPILOT_LLM_PROVIDER`:
+  - `deepseek` (default): OpenAI-compatible endpoint via `DeepSeekChatModel` (langchain-core `BaseChatModel` with `bind_tools`). `SUBPILOT_LLM_MODEL` / `SUBPILOT_LLM_API_KEY` / `SUBPILOT_LLM_BASE_URL` all come from the environment — nothing hardcoded, missing values raise a clear error.
+  - `fake`: scripted deterministic model for tests/demo only — production logic never depends on it.
+- **Minimal LangGraph loop** — `START → contextualize → agent ⇄ tools(ToolNode) → END`, routed by `tools_condition`. Tools are injected as a parameter (`build_agent_graph(model, tools, ...)`), ready for Phase 4.
+- **Deterministic contextualize node** — converts the Phase 2 `ScheduleStatus` into schedule context text (zero LLM). Missing schedule file → no context; file present but no classes → explicit "No classes are scheduled today."
+- **One tool** — `retrieve_documents` wraps the Phase 1 RAG query; no hits returns `"No relevant information found."`, and the system prompt forbids inventing policy details.
+- **Session state** — `SessionStore` protocol + in-memory implementation, swappable for a SQLite checkpoint later.
+
+```python
+from app.agent import Agent
+
+agent = Agent()                      # env-configured provider + data/schedule.json + RAG
+answer = agent.run(session_id="s1", text="What period is it?", now=aware_now)
+```
+
+Agent never reads the clock itself — callers inject `now`.
 
 ## Schedule engine (Phase 2)
 
@@ -49,7 +70,7 @@ result.message                                       # "No relevant information 
 
 Tests: `uv run pytest` (unit) and `uv run pytest -m integration` (end-to-end with the real embedding model; first run downloads the model).
 
-## Quick start (Phase 2)
+## Quick start (Phase 3)
 
 ```bash
 cd subpilot

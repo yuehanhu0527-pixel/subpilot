@@ -17,10 +17,17 @@ def _default_data_dir() -> Path:
 class Settings:
     app_name: str = "SubPilot"
 
-    # "anthropic" (default) or "fake" (demo mode). Actually used from Phase 3 on.
-    llm_provider: str = os.environ.get("SUBPILOT_LLM_PROVIDER", "anthropic")
+    # LLM provider（Phase 3 起生效）: "deepseek"（默认，OpenAI-compatible）或
+    # "fake"（脚本化演示/测试，无需 key）。
+    llm_provider: str = os.environ.get("SUBPILOT_LLM_PROVIDER", "deepseek")
 
-    # Set in .env from Phase 3 onward; unset means demo mode.
+    # DeepSeek-compatible 端点配置：全部来自环境变量，代码不写死；
+    # provider=deepseek 时三者必须齐全，缺失由 get_provider() 明确报错。
+    llm_model: str | None = os.environ.get("SUBPILOT_LLM_MODEL")
+    llm_api_key: str | None = os.environ.get("SUBPILOT_LLM_API_KEY")
+    llm_base_url: str | None = os.environ.get("SUBPILOT_LLM_BASE_URL")
+
+    # 后续 Phase 使用（anthropic provider）；当前 Phase 3 未使用。
     anthropic_api_key: str | None = os.environ.get("ANTHROPIC_API_KEY")
 
     # 本地数据目录（Phase 1 起用于 Chroma 与 embedding 模型缓存）
