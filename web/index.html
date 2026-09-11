@@ -1,29 +1,71 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SubPilot — AI Agent for Substitute Teachers</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SubPilot — your day, guided</title>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <h1>SubPilot</h1>
-    <p class="tagline">Your AI copilot for the school day</p>
+    <div class="brand">SubPilot</div>
+    <div class="topline" id="topline"></div>
   </header>
 
   <main class="layout">
-    <!-- 聊天区：阶段 5 实现流式聊天与来源卡片 -->
-    <section class="chat-panel" id="chat">
-      <p class="placeholder">Chat will appear here (Phase 5).</p>
+    <section class="column main">
+      <div class="hero">
+        <h1>What should I do now?</h1>
+        <p class="hero-answer" id="hero-answer"></p>
+      </div>
+
+      <section class="chat card" id="chat-section">
+        <div class="messages" id="messages"></div>
+        <form class="composer" id="composer">
+          <input type="text" id="chat-input" placeholder="Ask SubPilot — policies, students, the day…" autocomplete="off">
+          <button type="submit" id="send-btn">Send</button>
+        </form>
+      </section>
+
+      <section class="report-section" id="report-section">
+        <div class="section-head">
+          <h2 class="eyebrow">End-of-Day Report</h2>
+          <button class="quiet-btn" id="generate-report" type="button">Generate note</button>
+        </div>
+        <article class="letter card" id="report-letter" hidden>
+          <div class="letter-body" id="report-body"></div>
+        </article>
+      </section>
     </section>
 
-    <!-- 状态栏：阶段 5 实现 Now / trackers / events / documents -->
-    <aside class="sidebar">
-      <div class="card placeholder">Now · current period (later)</div>
-      <div class="card placeholder">Bathroom trackers (later)</div>
-      <div class="card placeholder">Today&rsquo;s events (later)</div>
-      <div class="card placeholder">Documents (later)</div>
+    <aside class="column side">
+      <section class="panel card" id="now-panel">
+        <h2 class="eyebrow">Now</h2>
+        <div class="now-body" id="now-body"></div>
+        <ol class="timeline" id="timeline"></ol>
+      </section>
+
+      <section class="panel card" id="bathroom-panel">
+        <h2 class="eyebrow">Bathroom</h2>
+        <ul class="quiet-list" id="bathroom-list"></ul>
+      </section>
+
+      <section class="panel card" id="events-panel">
+        <h2 class="eyebrow">Events</h2>
+        <ol class="event-list" id="events-list"></ol>
+      </section>
+
+      <section class="panel card" id="documents-panel">
+        <h2 class="eyebrow">Documents</h2>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="file-input" multiple hidden accept=".pdf,.docx,.txt,.md">
+          <p>Drop files here, or <span class="link">browse</span></p>
+          <p class="hint">PDF · DOCX · TXT · MD</p>
+        </div>
+        <ul class="quiet-list" id="doc-list"></ul>
+      </section>
+
+      <section class="notes" id="notes"></section>
     </aside>
   </main>
 

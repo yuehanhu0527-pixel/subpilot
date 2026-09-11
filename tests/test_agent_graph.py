@@ -403,6 +403,43 @@ def test_invalid_period_rejected_in_loop(tmp_path, schedule_engine):
     assert repo.events_on("2026-09-10") == []
 
 
+# --- Phase 5：run_turn 返回回答 + RAG 来源 ---
+
+
+def test_run_turn_returns_answer_with_sources(retrieve_tool_with_docs):
+    model = FakeChatModel(
+        responses=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"name": "retrieve_documents", "args": {"query": "bathroom pass"}, "id": "c1"}
+                ],
+            ),
+            AIMessage(content="Students need a signed note."),
+        ]
+    )
+    agent = Agent(
+        model=model, tools=[retrieve_tool_with_docs], sessions=InMemorySessionStore()
+    )
+    turn = agent.run_turn("s1", "bathroom pass policy?")
+    assert turn.answer == "Students need a signed note."
+    assert turn.sources == ("policy.pdf · (p.3) · § Bathroom Passes",)
+
+
+def test_run_turn_without_tools_has_no_sources():
+    model = FakeChatModel(responses=[AIMessage(content="just answering")])
+    agent = Agent(model=model, tools=[], sessions=InMemorySessionStore())
+    turn = agent.run_turn("s1", "hi")
+    assert turn.answer == "just answering"
+    assert turn.sources == ()
+
+
+def test_run_returns_plain_answer_string():
+    model = FakeChatModel(responses=[AIMessage(content="plain")])
+    agent = Agent(model=model, tools=[], sessions=InMemorySessionStore())
+    assert agent.run("s1", "hi") == "plain"
+
+
 def test_agent_default_tools_assembled(tmp_data_dir):
     model = FakeChatModel(responses=[AIMessage(content="ok")])
     agent = Agent(model=model)  # tools=None → 默认组装

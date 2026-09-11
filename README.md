@@ -2,7 +2,20 @@
 
 An AI agent that helps substitute teachers get through their day at an unfamiliar school.
 
-**Status: Phase 4 — action tools.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+**Status: Phase 5 — web UI.** The full README (architecture diagram, demo GIF, quickstart) lands in Phase 7.
+
+## Web UI (Phase 5)
+
+A quiet, Morandi-toned single-page interface (`web/`, vanilla HTML/CSS/JS) served by the existing static mount, backed by a thin `/api` layer (`app/api/`):
+
+- **Hero** — "What should I do now?" with a one-line, schedule-derived answer.
+- **Chat** — session-based agent conversation; RAG hits appear as quiet source footnotes.
+- **Status rail** — Now (current period + day timeline), Bathroom (who's out, how long), Events (today's log), Documents (upload dropzone + ingested list).
+- **End-of-Day Report** — generates the substitute note, rendered as a paper letter.
+- **API** — `/api/chat` (answer + sources), `/api/status`, `/api/documents` (upload/list), `/api/report`; missing configuration returns 503 with an explicit message, never silent degradation.
+- Mobile: single-column with a sticky composer.
+
+Set `SUBPILOT_LLM_MODEL / _API_KEY / _BASE_URL` and `SUBPILOT_TIMEZONE`, drop a `data/schedule.json`, and run `uvicorn app.main:app` — the UI is at <http://127.0.0.1:8000>.
 
 ## Action tools (Phase 4)
 
@@ -88,7 +101,7 @@ result.message                                       # "No relevant information 
 
 Tests: `uv run pytest` (unit) and `uv run pytest -m integration` (end-to-end with the real embedding model; first run downloads the model).
 
-## Quick start (Phase 4)
+## Quick start (Phase 5)
 
 ```bash
 cd subpilot

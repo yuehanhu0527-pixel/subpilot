@@ -21,6 +21,7 @@ dependencies = [
     "chromadb>=0.5",
     "langgraph>=1.2.11",
     "httpx>=0.28.1",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]
