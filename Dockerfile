@@ -14,6 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY pyproject.toml README.md ./
 COPY app ./app
+COPY web ./web
 COPY sample_data ./sample_data
 COPY scripts ./scripts
 
