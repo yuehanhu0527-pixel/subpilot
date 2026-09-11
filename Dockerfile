@@ -19,6 +19,6 @@ COPY scripts ./scripts
 
 RUN pip install --no-cache-dir .
 
-# Seed the schedule + handbook at container start (dates are relative to today),
-# then serve. PORT comes from Render.
-CMD ["sh", "-c", "python scripts/demo.py --seed-only && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Demo data (schedule + handbook) is seeded automatically at startup by the
+# app lifespan when SUBPILOT_LLM_PROVIDER=demo. PORT comes from Render.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

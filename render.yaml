@@ -12,4 +12,4 @@ services:
       - key: SUBPILOT_EMBEDDER
         value: lexical
       - key: SUBPILOT_TIMEZONE
-        value: America/New_York
+        value: America/Los_Angeles

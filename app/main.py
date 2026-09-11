@@ -1,13 +1,28 @@
 """SubPilot — FastAPI entry point (Phase 5: API + static UI)."""
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .api import router as api_router
+from .config import settings
 
-app = FastAPI(title="SubPilot", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Hosted demo：demo provider 下启动即自动播种 schedule + 示例手册，
+    # 不依赖手动运行 scripts/demo.py（seed_documents 幂等）。
+    if settings.llm_provider == "demo":
+        from .demo_seed import seed_documents, seed_schedule
+
+        seed_schedule()
+        seed_documents()
+    yield
+
+
+app = FastAPI(title="SubPilot", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/healthz")

@@ -79,7 +79,7 @@ One command: seeds this week's bell schedule, ingests a sample school handbook i
 - The Now panel shows the seeded schedule; bathroom/event panels react to chat actions.
 - Anything the handbook doesn't cover → the agent says so plainly.
 
-**Hosted demo (Render Free, 512 MB)** — set `SUBPILOT_EMBEDDER=lexical` alongside `SUBPILOT_LLM_PROVIDER=demo`: retrieval then uses a lightweight hashed bag-of-words embedder (no torch / sentence-transformers, fits the 512 MB limit) over the same loader → chunker → Chroma → retriever → citation pipeline — still real retrieval, never hardcoded answers. Local/live mode is unaffected and always uses the full sentence-transformers + Chroma stack.
+**Hosted demo (Render Free, 512 MB)** — set `SUBPILOT_EMBEDDER=lexical` alongside `SUBPILOT_LLM_PROVIDER=demo`: retrieval then uses a lightweight hashed bag-of-words embedder (no torch / sentence-transformers, fits the 512 MB limit) over the same loader → chunker → Chroma → retriever → citation pipeline — still real retrieval, never hardcoded answers. With `SUBPILOT_LLM_PROVIDER=demo`, the app auto-seeds demo data (this week's bell schedule + the sample handbook) at startup via its lifespan — no scripts to run. Local/live mode is unaffected and always uses the full sentence-transformers + Chroma stack.
 
 ## Configuration
 
