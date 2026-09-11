@@ -9,5 +9,7 @@ services:
     envVars:
       - key: SUBPILOT_LLM_PROVIDER
         value: demo
+      - key: SUBPILOT_EMBEDDER
+        value: lexical
       - key: SUBPILOT_TIMEZONE
         value: America/New_York

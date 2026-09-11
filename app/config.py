@@ -37,5 +37,9 @@ class Settings:
     # 未设置时 ScheduleEngine 必须显式传 tz，否则报错——绝不回退到服务器本地时区。
     timezone: str | None = os.environ.get("SUBPILOT_TIMEZONE")
 
+    # RAG embedder（Phase 7）: "local"（默认，sentence-transformers + Chroma）
+    # 或 "lexical"（轻量词法哈希，无 torch——Render Free 512MB hosted demo）。
+    rag_embedder: str = os.environ.get("SUBPILOT_EMBEDDER", "local")
+
 
 settings = Settings()

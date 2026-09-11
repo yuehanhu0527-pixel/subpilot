@@ -79,6 +79,8 @@ One command: seeds this week's bell schedule, ingests a sample school handbook i
 - The Now panel shows the seeded schedule; bathroom/event panels react to chat actions.
 - Anything the handbook doesn't cover → the agent says so plainly.
 
+**Hosted demo (Render Free, 512 MB)** — set `SUBPILOT_EMBEDDER=lexical` alongside `SUBPILOT_LLM_PROVIDER=demo`: retrieval then uses a lightweight hashed bag-of-words embedder (no torch / sentence-transformers, fits the 512 MB limit) over the same loader → chunker → Chroma → retriever → citation pipeline — still real retrieval, never hardcoded answers. Local/live mode is unaffected and always uses the full sentence-transformers + Chroma stack.
+
 ## Configuration
 
 | Variable | Meaning |
@@ -86,6 +88,7 @@ One command: seeds this week's bell schedule, ingests a sample school handbook i
 | `SUBPILOT_LLM_PROVIDER` | `deepseek` (default) · `demo` (zero-key) · `fake` (tests) |
 | `SUBPILOT_LLM_MODEL` / `_API_KEY` / `_BASE_URL` | OpenAI-compatible endpoint — all three required for `deepseek`, nothing hardcoded |
 | `SUBPILOT_TIMEZONE` | IANA name (e.g. `America/New_York`) — the schedule engine raises without an explicit tz rather than falling back to server-local time |
+| `SUBPILOT_EMBEDDER` | `local` (default, sentence-transformers) · `lexical` (no torch — hosted demo on Render Free 512 MB) |
 | `SUBPILOT_DATA_DIR` | Data root (Chroma, SQLite, model cache, schedule.json) — default `./data` |
 
 ## Tests
@@ -95,7 +98,7 @@ uv run pytest                    # fast unit/API tests, no network
 uv run pytest -m integration     # real-embedding end-to-end test (first run downloads the model)
 ```
 
-Latest run: **170 passed + 1 integration passed (1 skipped pending model download)**, plus a 10-check end-to-end smoke covering chat→agent→tool→cited answer, upload→RAG, all four panels, report, and the 502 error path.
+Latest run: **175 passed + 1 integration passed (1 skipped pending model download)**, plus a 10-check end-to-end smoke covering chat→agent→tool→cited answer, upload→RAG, all four panels, report, and the 502 error path.
 
 ## Deployment (free / low-cost)
 
@@ -105,7 +108,7 @@ Latest run: **170 passed + 1 integration passed (1 skipped pending model downloa
 2. Render → *New → Blueprint* → select the repo. `render.yaml` provisions a free Docker web service with the `demo` provider and a `/healthz` health check.
 3. Open the `.onrender.com` URL.
 
-Notes: free tier has an ephemeral disk, so uploaded documents reset on redeploy — fine for a portfolio demo. For a persistent or real-LLM deployment, set `SUBPILOT_LLM_PROVIDER=deepseek` + the three endpoint vars in the Render dashboard and add a persistent disk for `SUBPILOT_DATA_DIR`. The Dockerfile pre-downloads the embedding model at build time so cold boots never time out.
+Notes: the blueprint sets `SUBPILOT_EMBEDDER=lexical` so the hosted demo runs real retrieval without loading torch — that's what keeps it inside the 512 MB free-tier limit (dense sentence-transformers embeddings OOM there). Free tier also has an ephemeral disk, so uploaded documents reset on redeploy — fine for a portfolio demo. For a persistent or real-LLM deployment, set `SUBPILOT_LLM_PROVIDER=deepseek` + the three endpoint vars in the Render dashboard, switch `SUBPILOT_EMBEDDER` back to `local` on a paid instance, and add a persistent disk for `SUBPILOT_DATA_DIR`. Note that a data dir ingested with one embedder can't be queried with the other (vector dimension mismatch) — redeploy with a fresh data dir when switching.
 
 Manual Docker:
 
