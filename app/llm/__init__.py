@@ -3,6 +3,7 @@
 get_provider() 依据 SUBPILOT_LLM_PROVIDER 返回 provider：
 - "deepseek"：OpenAI-compatible 端点，model/api_key/base_url 必须来自环境变量
   （SUBPILOT_LLM_MODEL / SUBPILOT_LLM_API_KEY / SUBPILOT_LLM_BASE_URL），缺失即报错。
+- "demo"：确定性 provider，零 API key（Phase 7 Demo mode），生产逻辑不依赖它。
 - "fake"：脚本化演示/测试 provider，生产逻辑不依赖它。
 """
 
@@ -32,6 +33,10 @@ def get_provider() -> BaseChatModel:
             api_key=values["SUBPILOT_LLM_API_KEY"],
             base_url=values["SUBPILOT_LLM_BASE_URL"],
         )
+    if settings.llm_provider == "demo":
+        from .demo import DemoChatModel  # 惰性导入：仅 Demo mode
+
+        return DemoChatModel()
     if settings.llm_provider == "fake":
         from .fake import FakeChatModel  # 惰性导入：仅演示/测试
 

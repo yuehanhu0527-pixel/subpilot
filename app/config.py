@@ -17,8 +17,8 @@ def _default_data_dir() -> Path:
 class Settings:
     app_name: str = "SubPilot"
 
-    # LLM provider（Phase 3 起生效）: "deepseek"（默认，OpenAI-compatible）或
-    # "fake"（脚本化演示/测试，无需 key）。
+    # LLM provider（Phase 3 起生效）: "deepseek"（默认，OpenAI-compatible）、
+    # "demo"（确定性零 key，Phase 7）或 "fake"（脚本化演示/测试）。
     llm_provider: str = os.environ.get("SUBPILOT_LLM_PROVIDER", "deepseek")
 
     # DeepSeek-compatible 端点配置：全部来自环境变量，代码不写死；

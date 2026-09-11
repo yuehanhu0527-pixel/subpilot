@@ -1,0 +1,13 @@
+# Render Blueprint — free web service, demo provider (no API key needed).
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: subpilot
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: SUBPILOT_LLM_PROVIDER
+        value: demo
+      - key: SUBPILOT_TIMEZONE
+        value: America/New_York
