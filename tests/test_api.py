@@ -109,6 +109,18 @@ def test_chat_missing_config_returns_503(client, monkeypatch):
     assert "SUBPILOT_LLM_API_KEY" in r.json()["detail"]
 
 
+def test_chat_llm_runtime_failure_returns_502(client, monkeypatch):
+    class BoomModel(FakeChatModel):
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            raise RuntimeError("provider down")
+
+    agent = Agent(model=BoomModel(), tools=[], sessions=InMemorySessionStore())
+    monkeypatch.setattr(api_mod, "_get_agent", lambda: agent)
+    r = client.post("/api/chat", json={"session_id": "s1", "text": "hi"})
+    assert r.status_code == 502
+    assert "provider down" in r.json()["detail"]
+
+
 def test_chat_requires_text(client, monkeypatch):
     monkeypatch.setattr(api_mod, "_get_agent", lambda: _scripted_agent())
     r = client.post("/api/chat", json={"session_id": "s1"})

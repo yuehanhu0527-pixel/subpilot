@@ -213,6 +213,9 @@ async function sendChat(text) {
   const btn = $("#send-btn");
   input.value = "";
   btn.disabled = true;
+  const thinking = el("div", "message assistant thinking", "…");
+  $("#messages").appendChild(thinking);
+  $("#messages").scrollTop = $("#messages").scrollHeight;
   try {
     const body = await api("/api/chat", {
       method: "POST",
@@ -220,9 +223,11 @@ async function sendChat(text) {
       body: JSON.stringify({ session_id: SESSION_ID, text }),
     });
     addMessage("assistant", body.answer, body.sources);
+    loadStatus(); // 工具可能记了 bathroom pass / event，立即刷新侧栏
   } catch (err) {
     addMessage("error", err.message);
   } finally {
+    thinking.remove();
     btn.disabled = false;
     input.focus();
   }
@@ -275,6 +280,7 @@ async function uploadFiles(files) {
 async function generateReport() {
   const btn = $("#generate-report");
   btn.disabled = true;
+  btn.textContent = "Generating…";
   try {
     const body = await api("/api/report", {
       method: "POST",
@@ -287,6 +293,7 @@ async function generateReport() {
     addMessage("error", "Could not generate the note: " + err.message);
   } finally {
     btn.disabled = false;
+    btn.textContent = "Generate note";
   }
 }
 

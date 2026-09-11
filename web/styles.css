@@ -157,6 +157,16 @@ body {
 
 .message.error { align-self: flex-start; color: var(--rose); font-size: 0.85rem; }
 
+.message.thinking {
+  color: var(--ink-soft);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
 .sources {
   margin-top: 8px;
   display: flex;

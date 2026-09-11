@@ -77,7 +77,10 @@ def chat(req: ChatRequest) -> dict:
         agent = _get_agent()
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    turn = agent.run_turn(req.session_id, req.text, now=_now())
+    try:
+        turn = agent.run_turn(req.session_id, req.text, now=_now())
+    except Exception as exc:  # LLM/tool 运行时故障：明确 502，不裸抛 500
+        raise HTTPException(status_code=502, detail=f"Agent call failed: {exc}")
     return {"answer": turn.answer, "sources": list(turn.sources)}
 
 
@@ -181,5 +184,8 @@ def report(req: ReportRequest) -> dict:
         "schedule context. If no events were logged, say so plainly — "
         "never invent events."
     )
-    turn = agent.run_turn(req.session_id, prompt, now=_now())
+    try:
+        turn = agent.run_turn(req.session_id, prompt, now=_now())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Agent call failed: {exc}")
     return {"report": turn.answer}
