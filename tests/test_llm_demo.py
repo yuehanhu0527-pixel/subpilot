@@ -1,12 +1,39 @@
 """DemoChatModel：确定性零 key provider 的行为测试。"""
 
+from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from langchain_core.messages import HumanMessage, ToolMessage
 
 import app.llm as llm_mod
 from app.llm.demo import DEMO_NOTE, DemoChatModel
+from app.agent import Agent
+from app.agent.sessions import InMemorySessionStore
 from app.agent.tools import make_retrieve_documents_tool
+from app.rag.lexical import LexicalEmbedder
+from app.rag.pipeline import ingest_file
+
+HANDBOOK = Path(__file__).resolve().parent.parent / "sample_data" / "substitute-handbook.md"
+
+LESSON_PLAN = """# Science Lesson Plan — Period 3 (Grade 6)
+
+## Objective
+Students will complete a guided inquiry lab on plant transpiration.
+
+## Period 1: Warm-up
+Complete the vocabulary worksheet in the science folder.
+
+## Period 3: Lab Activity
+Students should be doing the transpiration lab in pairs: set up the celery
+experiment, then record observations every 10 minutes in their science
+notebook. The lab must be supervised at all times. Students may start the
+science lab today only after passing the safety quiz on Friday.
+
+## Period 5: Wrap-up
+Collect the observation sheets and have students write a one-sentence
+summary of their results.
+"""
 
 
 def test_human_message_triggers_retrieval_tool_call():
@@ -49,8 +76,6 @@ def test_get_provider_demo(monkeypatch):
 
 def test_full_graph_loop_answers_with_citation(store, collection):
     """回归：graph 里 contextualize 追加 SystemMessage 后仍能触发检索并作答。"""
-    from app.agent import Agent
-    from app.agent.sessions import InMemorySessionStore
     from app.rag.models import TextChunk
     from tests.helpers import FakeEmbedder
 
@@ -69,3 +94,36 @@ def test_full_graph_loop_answers_with_citation(store, collection):
     turn = agent.run_turn("s1", "What is the bathroom pass policy?")
     assert "Bathroom passes require a signed note." in turn.answer
     assert list(turn.sources) == ["handbook.txt"]
+
+
+def _agent_with_docs(store, collection, tmp_path) -> Agent:
+    """真实链路：示例手册 + lesson plan 经 loader/chunker/lexical 入库。"""
+    embedder = LexicalEmbedder()
+    ingest_file(HANDBOOK, collection_name=collection, store=store, embedder=embedder)
+    lesson = tmp_path / "lesson_plan.md"
+    lesson.write_text(LESSON_PLAN)
+    ingest_file(lesson, collection_name=collection, store=store, embedder=embedder)
+    tool = make_retrieve_documents_tool(store=store, embedder=embedder, collection_name=collection)
+    return Agent(model=DemoChatModel(), tools=[tool], sessions=InMemorySessionStore())
+
+
+@pytest.mark.parametrize(
+    "question,expect,absent,source",
+    [
+        # 只引用相关句子，不整块贴出 chunk
+        ("What should Period 3 be doing?", "transpiration lab", "vocabulary worksheet", "lesson_plan.md"),
+        ("Can students start the science lab today?", "safety quiz", "vocabulary worksheet", "lesson_plan.md"),
+        # 跨 chunk 续接：断句被第二命中补齐
+        ("What should I do during a fire drill?", "single file", "Thank you for covering", "substitute-handbook.md"),
+        ("How long can a student be out for the bathroom?", "5 minutes", "nut-free", "substitute-handbook.md"),
+    ],
+)
+def test_demo_answers_quote_relevant_sentences(tmp_path, store, question, expect, absent, source):
+    # collection 名不能来自 nodeid（含参数化文本会超长/以 - 结尾）
+    name = f"demo-{abs(hash(question))}"
+    agent = _agent_with_docs(store, name, tmp_path)
+    turn = agent.run_turn("s", question)
+    assert expect in turn.answer, turn.answer
+    assert absent not in turn.answer, turn.answer
+    assert source in turn.answer  # 保留原 citation
+    assert len(turn.answer) < 600  # 不再整块输出 chunk（chunk 本身 640–958 字符）
